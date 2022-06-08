@@ -1,0 +1,14 @@
+shirayarhi, omri.tamam
+Shira Yarhi (318344637), Omri Tamam (315564112)
+EX:
+
+FILES:
+
+ANSWERS:
+
+
+5.The 'chroot' command get a directory path and allows to change the root directory of currently running processes and
+its child processes to the given path.
+
+6. The main purpose of 'procfs' is to contain the data of all the processes when they are initialize.
+one of main use of the procfs is to allow communication between the kernel and the user during runtime.
