@@ -29,36 +29,54 @@ int InitContainer(void* containerInfo) {
 //    printf("%s\n", info->hostname);
 //    printf("%zu\n", info->len_hostname);
 //    printf("%d\n", info->max_processes);
-//    printf("%p\n", info->functionPathInContainer);
-//    printf("%p\n", info->args);
+    printf("%s\n", (char *)info->functionPathInContainer);
+    printf("%s\n", (char *)info->args);
 
     //1. change hostname
     auto rt = sethostname(info->hostname, info->len_hostname);
     if (rt != 0) {
         printf("sethostname");
+        fflush(stdout);
         return -1;
     }
     printf("hostname changed\n");
+    fflush(stdout);
+
 
     
     // 1. change root
     rt = chroot(info->rpath);
     if (rt != 0) {
         printf("chroot fails\n");
+        fflush(stdout);
         return -1;
     }
     printf("%s\n", "chroot done");
+    fflush(stdout);
 
+    // 3. Change the working directory into the new root directory
+    rt = chdir(info->rpath);
+    if (rt != 0) {
+        printf("chdir");
+        fflush(stdout);
+        return -1;
+    }
+    printf("finish chdir\n");
+    fflush(stdout);
 
 
     // 2. create cgrop file
 //    rt = boost::filesystem::create_directories("/sys/fs/cgroup/pids");
-rt = system("mkdir -p /sys/fs/cgroup/pids");
+    rt = system("mkdir -p /sys/fs/cgroup/pids");
     if (rt != 0) {
         printf("mkdir fails\n");
+        fflush(stdout);
+
         return -1;
     }
-    printf("%s\n", "mkdir done");
+    printf("%s\n", "mkdir done!!");
+    fflush(stdout);
+
     ofstream outfile;
     outfile.open("/sys/fs/cgroup/pids/cgroup.procs");
     outfile << to_string(getpid());
@@ -73,31 +91,35 @@ rt = system("mkdir -p /sys/fs/cgroup/pids");
     outfile << "1";
     outfile.close();
     printf("%s\n", "create cgrop file done");
+    fflush(stdout);
 
 
 
-    // 3. Change the working directory into the new root directory
-    rt = chdir(info->rpath);
-    if (rt != 0) {
-        perror("chdir");
-        return -1;
-    }
-    printf("finish chdir\n");
+
+
 
     //4. Mount the new procfs
     rt = mount("proc", "/proc", "proc", 0, nullptr);
     if (rt != 0) {
-        perror("mount");
+        printf("mount");
+        fflush(stdout);
         return -1;
     }
     printf("finish mount\n");
-
-
-
+    printf("-----------------------------------------------------\n");
+    fflush(stdout);
+    system("pwd");
+    system("cd bin");
+    system("ls");
+    system("cd ..");
+    system("bin/bash");
+    fflush(stdout);
     // 5. Run the terminal/new program
     rt =  execvp((char *)info->functionPathInContainer, (char* const*) info->args);
     if (rt == -1) {
-        perror("execvp");
+        printf("execvp error\n");
+        fflush(stdout);
+
         return -1;
     }
     return 0;
@@ -118,20 +140,6 @@ void proc_exit(int i)
         perror("umount");
         exit(1);
     }
-
-//    int wstat;
-//    union wait wstat;
-//    pid_t	pid;
-//
-//    while (true) {
-//        pid = wait3 (&wstat, WNOHANG, (struct rusage *)NULL );
-//        if (pid == 0)
-//            return;
-//        else if (pid == -1)
-//            return;
-//        else
-//            printf ("Return code: %d\n", wstat.w_retcode);
-//    }
 }
 
 // usage: ./container <new_hostname> <new_filesystem_directory> <num_processes> <path_to_program_to_run_within_container> <args_for_program>
@@ -144,7 +152,7 @@ int main(int argc, char* argv[]) {
     info.functionPathInContainer = argv[4];
     char* _args[] ={(char *)info.functionPathInContainer, (char *)argv + 5, (char *)0};
     info.args = _args;
-    signal (SIGCHLD,proc_exit);
+//    signal (SIGCHLD,proc_exit);
 
     auto pidChild = newContainer(&info);
     if (pidChild == -1) {
