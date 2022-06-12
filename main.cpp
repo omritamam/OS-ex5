@@ -1,20 +1,16 @@
 #include <iostream>
 #include <unistd.h>
 #include <stdio.h>
-#include <a.out.h>
 #include <csignal>
-#include <sys/wait.h>
 #include <string.h>
-#include <stdio.h>
 #include <signal.h>
 #include <sys/wait.h>
-#include <sys/resource.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
-#include <sys/echo.h>
 #include<memory>
 #include <fstream>
-
+//#include <boost/filesystem.hpp>
+//...
 using namespace std;
 struct ContainerInfo {
 
@@ -29,62 +25,81 @@ struct ContainerInfo {
 // Password to root is “toor”
 int InitContainer(void* containerInfo) {
     auto* info = (ContainerInfo*) containerInfo;
-    // change root
-    auto rt = chroot(info->rpath);
-    if (rt != 0) {
-        perror("chroot");
-        return -1;
-    }
-    //change hostname
-    rt = sethostname(info->hostname, info->len_hostname);
-    if (rt != 0) {
-        perror("sethostname");
-        return -1;
-    }
+//    printf("%s\n", info->rpath);
+//    printf("%s\n", info->hostname);
+//    printf("%zu\n", info->len_hostname);
+//    printf("%d\n", info->max_processes);
+//    printf("%p\n", info->functionPathInContainer);
+//    printf("%p\n", info->args);
 
-    // create cgrop file
-    mkdir("/sys/fs/cgroup/pids", 0755);
+    //1. change hostname
+    auto rt = sethostname(info->hostname, info->len_hostname);
+    if (rt != 0) {
+        printf("sethostname");
+        return -1;
+    }
+    printf("hostname changed\n");
+
+    
+    // 1. change root
+    rt = chroot(info->rpath);
+    if (rt != 0) {
+        printf("chroot fails\n");
+        return -1;
+    }
+    printf("%s\n", "chroot done");
+
+
+
+    // 2. create cgrop file
+//    rt = boost::filesystem::create_directories("/sys/fs/cgroup/pids");
+rt = system("mkdir -p /sys/fs/cgroup/pids");
+    if (rt != 0) {
+        printf("mkdir fails\n");
+        return -1;
+    }
+    printf("%s\n", "mkdir done");
     ofstream outfile;
     outfile.open("/sys/fs/cgroup/pids/cgroup.procs");
     outfile << to_string(getpid());
     outfile.close();
 
-    ofstream cgroup("/sys/fs/cgroup/pids/pids.max");
-    cgroup << to_string(info->max_processes);
-    cgroup.close();
+    outfile.open("/sys/fs/cgroup/pids/pids.max");
+    outfile << to_string(info->max_processes);
+    outfile.close();
 
-    //notify to release
-    ofstream notify("/sys/fs/cgroup/pids/notify_on_release");
-    notify << "1";
-    notify.close();
+    //2. notify to release
+    outfile.open("/sys/fs/cgroup/pids/notify_on_release");
+    outfile << "1";
+    outfile.close();
+    printf("%s\n", "create cgrop file done");
 
-    /**
-     *        int mount(const char *source, const char *target,
-                 const char *filesystemtype, unsigned long mountflags,
-                 const void *data);
-     */
-     //TODO: Check the arguments
-    rt = mount("proc", "/proc", "proc", 0, 0);
-    if (rt != 0) {
-        perror("mount");
-        return -1;
-    }
 
-    // 3 Change the working directory into the new root directory
+
+    // 3. Change the working directory into the new root directory
     rt = chdir(info->rpath);
     if (rt != 0) {
         perror("chdir");
         return -1;
     }
+    printf("finish chdir\n");
 
     //4. Mount the new procfs
-    // mount -t proc none /proc
+    rt = mount("proc", "/proc", "proc", 0, nullptr);
+    if (rt != 0) {
+        perror("mount");
+        return -1;
+    }
+    printf("finish mount\n");
+
+
+
+    // 5. Run the terminal/new program
     rt =  execvp((char *)info->functionPathInContainer, (char* const*) info->args);
     if (rt == -1) {
         perror("execvp");
         return -1;
     }
-    //wait( int execvp(const char *file, char *const argv[]) );
     return 0;
 }
 
@@ -97,6 +112,7 @@ int newContainer(ContainerInfo* containerInfo) {
 
 void proc_exit(int i)
 {
+    //change to full path
     auto rt = umount("/proc");
     if (rt != 0) {
         perror("umount");
@@ -137,3 +153,23 @@ int main(int argc, char* argv[]) {
     }
     return 0;
 }
+/**
+* 1. Run the command in the terminal:
+
+rundeb10 -cow /cs/course/current/os/ex5/ex5-deb10.qcow2 -bind /cs/usr/omri.tamam/CLionProjects/OS-ex5/ -root -snapshot -- -net user,hostfwd=tcp:127.0.0.1:2222-:22 -net nic,model=virtio
+
+The VM shpuld open
+
+2. Notice that the file that is given to -bind is recognized by the VM and whnever you are making changes on the computer
+it will automatically be updated.
+
+3. Open the terminal in the VM
+4. run the command: su root. Set the password to 'toor'
+5. Navigate to 'root@debian10'
+6. cd /cs/usr/omri.tamama/CLionProject/OS-ex5
+Now you are in your user and you can navigate to the folder you gave as an argument.
+7. Compile you code file – g++ -std=c++11 -Wall container.cpp -o container
+8. Run your code file g++ - ./container host1 filesystem 3 “/bin/bash”
+
+Good Luc
+*/
