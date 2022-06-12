@@ -109,13 +109,14 @@ int InitContainer(void* containerInfo) {
     printf("-----------------------------------------------------\n");
     fflush(stdout);
     system("pwd");
+    system("ls");
     system("cd bin");
     system("ls");
     system("cd ..");
     system("bin/bash");
     fflush(stdout);
     // 5. Run the terminal/new program
-    rt =  execvp((char *)info->functionPathInContainer, (char* const*) info->args);
+    rt =  execv((char *)info->functionPathInContainer, (char* const*) info->args);
     if (rt == -1) {
         printf("execvp error\n");
         fflush(stdout);
@@ -137,7 +138,7 @@ void proc_exit(int i)
     //change to full path
     auto rt = umount("/proc");
     if (rt != 0) {
-        perror("umount");
+        printf("umount fails\n");
         exit(1);
     }
 }
