@@ -25,12 +25,6 @@ struct ContainerInfo {
 // Password to root is “toor”
 int InitContainer(void* containerInfo) {
     auto* info = (ContainerInfo*) containerInfo;
-//    printf("%s\n", info->rpath);
-//    printf("%s\n", info->hostname);
-//    printf("%zu\n", info->len_hostname);
-//    printf("%d\n", info->max_processes);
-    printf("%s\n", (char *)info->functionPathInContainer);
-    printf("%s\n", (char *)info->args);
 
     //1. change hostname
     auto rt = sethostname(info->hostname, info->len_hostname);
@@ -43,7 +37,6 @@ int InitContainer(void* containerInfo) {
     fflush(stdout);
 
 
-    
     // 1. change root
     rt = chroot(info->rpath);
     if (rt != 0) {
@@ -66,7 +59,6 @@ int InitContainer(void* containerInfo) {
 
 
     // 2. create cgrop file
-//    rt = boost::filesystem::create_directories("/sys/fs/cgroup/pids");
     rt = system("mkdir -p /sys/fs/cgroup/pids");
     if (rt != 0) {
         printf("mkdir fails\n");
@@ -94,10 +86,6 @@ int InitContainer(void* containerInfo) {
     fflush(stdout);
 
 
-
-
-
-
     //4. Mount the new procfs
     rt = mount("proc", "/proc", "proc", 0, nullptr);
     if (rt != 0) {
@@ -107,13 +95,6 @@ int InitContainer(void* containerInfo) {
     }
     printf("finish mount\n");
     printf("-----------------------------------------------------\n");
-    fflush(stdout);
-    system("pwd");
-    system("ls");
-    system("cd bin");
-    system("ls");
-    system("cd ..");
-    system("bin/bash");
     fflush(stdout);
     // 5. Run the terminal/new program
     rt =  execv((char *)info->functionPathInContainer, (char* const*) info->args);
