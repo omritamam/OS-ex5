@@ -21,7 +21,7 @@ struct ContainerInfo {
     void* functionPathInContainer;
     void* args;
 };
-// rundeb10 -cow /cs/course/current/os/ex5/ex5-deb10.qcow2 -bind cs/usr/omri.tamam/<PATH_TO_PROJECT_DIR>/ -serial -root -snapshot -- -net user,hostfwd=tcp:127.0.0.1:2222-:22 -net nic,model=virtio
+// rundeb10 -cow /cs/course/current/os/ex5/ex5-deb10.qcow2 -bind /cs/usr/omri.tamam/CLionProjects/OS-ex5 -serial -root -snapshot -- -net user,hostfwd=tcp:127.0.0.1:2222-:22 -net nic,model=virtio
 // Password to root is “toor”
 int InitContainer(void* containerInfo) {
     auto* info = (ContainerInfo*) containerInfo;
@@ -33,9 +33,6 @@ int InitContainer(void* containerInfo) {
         fflush(stdout);
         return -1;
     }
-    printf("hostname changed\n");
-    fflush(stdout);
-
 
     // 1. change root
     rt = chroot(info->rpath);
@@ -44,8 +41,6 @@ int InitContainer(void* containerInfo) {
         fflush(stdout);
         return -1;
     }
-    printf("%s\n", "chroot done");
-    fflush(stdout);
 
     // 3. Change the working directory into the new root directory
     rt = chdir(info->rpath);
@@ -54,54 +49,50 @@ int InitContainer(void* containerInfo) {
         fflush(stdout);
         return -1;
     }
-    printf("finish chdir\n");
-    fflush(stdout);
-
 
     // 2. create cgrop file
-    rt = system("mkdir -p /sys/fs/cgroup/pids");
+    rt = system("mkdir -p /sys/fs/cgroup/pids -m 0755");
     if (rt != 0) {
         printf("mkdir fails\n");
         fflush(stdout);
 
         return -1;
     }
-    printf("%s\n", "mkdir done!!");
-    fflush(stdout);
 
     ofstream outfile;
     outfile.open("/sys/fs/cgroup/pids/cgroup.procs");
     outfile << to_string(getpid());
     outfile.close();
+    chmod("/sys/fs/cgroup/pids/cgroup.procs", 0755);
 
     outfile.open("/sys/fs/cgroup/pids/pids.max");
     outfile << to_string(info->max_processes);
     outfile.close();
+    chmod("/sys/fs/cgroup/pids/pids.max", 0755);
 
     //2. notify to release
     outfile.open("/sys/fs/cgroup/pids/notify_on_release");
     outfile << "1";
     outfile.close();
-    printf("%s\n", "create cgrop file done");
-    fflush(stdout);
+    chmod("/sys/fs/cgroup/pids/notify_on_release", 0755);
+
+
+
 
 
     //4. Mount the new procfs
     rt = mount("proc", "/proc", "proc", 0, nullptr);
     if (rt != 0) {
-        printf("mount");
+        printf("mount error \n");
         fflush(stdout);
         return -1;
     }
-    printf("finish mount\n");
-    printf("-----------------------------------------------------\n");
-    fflush(stdout);
+
     // 5. Run the terminal/new program
     rt =  execv((char *)info->functionPathInContainer, (char* const*) info->args);
     if (rt == -1) {
         printf("execvp error\n");
         fflush(stdout);
-
         return -1;
     }
     return 0;
