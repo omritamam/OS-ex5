@@ -20,6 +20,7 @@ struct ContainerInfo {
     int max_processes;
     void* functionPathInContainer;
     void* args;
+    void *stack_pointer;
 };
 // rundeb10 -cow /cs/course/current/os/ex5/ex5-deb10.qcow2 -bind /cs/usr/omri.tamam/CLionProjects/OS-ex5 -serial -root -snapshot -- -net user,hostfwd=tcp:127.0.0.1:2222-:22 -net nic,model=virtio
 // Password to root is “toor”
@@ -27,7 +28,7 @@ int InitContainer(void* containerInfo) {
     auto* info = (ContainerInfo*) containerInfo;
 
     //1. change hostname
-    auto rt = sethostname(info->hostname, info->len_hostname);
+    auto rt = sethostname(info->hostname, info->len_hostname+1);
     if (rt != 0) {
         printf("sethostname");
         fflush(stdout);
@@ -77,9 +78,6 @@ int InitContainer(void* containerInfo) {
     chmod("/sys/fs/cgroup/pids/notify_on_release", 0755);
 
 
-
-
-
     //4. Mount the new procfs
     rt = mount("proc", "/proc", "proc", 0, nullptr);
     if (rt != 0) {
@@ -99,20 +97,8 @@ int InitContainer(void* containerInfo) {
 }
 
 int newContainer(ContainerInfo* containerInfo) {
-    auto * stack_pointer = malloc(8192);//TODO macro for stack size
-    auto * stack_pointer_top = (char *)stack_pointer + 8192;
+    auto * stack_pointer_top = (char *)containerInfo->stack_pointer + 8192;
     return clone(InitContainer,stack_pointer_top, CLONE_NEWNS | CLONE_NEWPID | CLONE_NEWUTS | SIGCHLD, containerInfo);
-}
-
-
-void proc_exit(int i)
-{
-    //change to full path
-    auto rt = umount("/proc");
-    if (rt != 0) {
-        printf("umount fails\n");
-        exit(1);
-    }
 }
 
 // usage: ./container <new_hostname> <new_filesystem_directory> <num_processes> <path_to_program_to_run_within_container> <args_for_program>
@@ -126,12 +112,32 @@ int main(int argc, char* argv[]) {
     char* _args[] ={(char *)info.functionPathInContainer, (char *)argv + 5, (char *)0};
     info.args = _args;
 //    signal (SIGCHLD,proc_exit);
-
+    auto * stack_pointer = malloc(8192);//TODO macro for stack size
+    info.stack_pointer = stack_pointer;
     auto pidChild = newContainer(&info);
     if (pidChild == -1) {
         std::cout << "Error creating container" << std::endl;
         return -1;
     }
+    wait(NULL);
+    std::string command = "rm -rf ";
+    command += info.rpath;
+    command += "/sys/*";
+    system(command.c_str());
+    free(stack_pointer);
+
+    printf("before umount\n");
+    fflush(stdout);
+
+    std::string pathToUmount = info.rpath;
+    pathToUmount += "/proc";
+    auto rt = umount(pathToUmount.c_str());
+    if (rt != 0) {
+        printf("umount fails\n");
+        exit(1);
+    }
+    printf("after umount\n");
+    fflush(stdout);
     return 0;
 }
 /**
