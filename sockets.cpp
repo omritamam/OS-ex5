@@ -66,38 +66,18 @@ int call_socket(char *hostname, unsigned short portnum) {
     return(s);
 }
 
-int read_data(int s, char *buf, int n) {
-    int bcount;       /* counts bytes read */
-    int br;               /* bytes read this pass */
-    bcount= 0; br= 0;
-    while (bcount < n) { /* loop until full buffer */
-        br = read(s, buf, n-bcount);
-        if ((br > 0)  ){
-            bcount += br;
-            buf += br;
-        }
-        if (br < 1) {
-            return(-1);
-        }
-    }
-    return(bcount);
-}
-
-
     // usage: ./sockets client <port> <terminal_command_to_run>
 // usage: ./sockets server <port>
 int main(int argc, char* argv[]) {
     auto type = argv[0];
     auto port  = argv[1];
-    char * buf = new char[256];
-    int socketFd = establish(strtol(port, nullptr, 10));
-    int newSocket = get_connection(socketFd);
-    int bcount = read_data(newSocket, buf, 256);
-
     if(strcmp(type, "client") == 0) {
         auto commandToRun = argv[2];
     }
+    int socketFd = establish(strtol(port, nullptr, 10));
+    int newSocket = get_connection(socketFd);
+
     return 0;
 
-    
+
 }

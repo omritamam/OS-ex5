@@ -13,7 +13,6 @@
 //...
 using namespace std;
 struct ContainerInfo {
-
     char* rpath;
     char* hostname;
     size_t len_hostname;
@@ -22,19 +21,26 @@ struct ContainerInfo {
     void* args;
     void *stack_pointer;
 };
+
 // rundeb10 -cow /cs/course/current/os/ex5/ex5-deb10.qcow2 -bind /cs/usr/omri.tamam/CLionProjects/OS-ex5 -serial -root -snapshot -- -net user,hostfwd=tcp:127.0.0.1:2222-:22 -net nic,model=virtio
 // Password to root is “toor”
 int InitContainer(void* containerInfo) {
     auto* info = (ContainerInfo*) containerInfo;
 
     //1. change hostname
+    printf("Changing hostname to %s\n", info->hostname);
+    fflush(stdout);
     auto rt = sethostname(info->hostname, info->len_hostname+1);
     if (rt != 0) {
         printf("sethostname");
         fflush(stdout);
         return -1;
     }
-
+    char myname[256+1];
+    gethostname(myname, 256);
+    printf("Hostname is %s\n", myname);
+    fflush(stdout);
+    
     // 1. change root
     rt = chroot(info->rpath);
     if (rt != 0) {
