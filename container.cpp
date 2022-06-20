@@ -108,7 +108,7 @@ int newContainer(ContainerInfo* containerInfo) {
 }
 
 // usage: ./container <new_hostname> <new_filesystem_directory> <num_processes> <path_to_program_to_run_within_container> <args_for_program>
-int main(int argc, char* argv[]) {
+int main2(int argc, char* argv[]) {
     ContainerInfo info{};
     info.rpath = argv[2];
     info.hostname = argv[1];

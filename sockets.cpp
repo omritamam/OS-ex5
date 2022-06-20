@@ -1,15 +1,15 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <cstring>
 #include <netdb.h>
-#include <armadillo>
 #include <iostream>
 #include <unistd.h>
+#include <errno.h>
 
 #define MAXHOSTNAME 256
 #define MAX_LISTEN_QUEUE 5
 #define BUFFER_SIZE 256
+
 static const int STOP_CHAR = '\0';
 
 int establishServer(unsigned short portnum) {
@@ -30,10 +30,15 @@ int establishServer(unsigned short portnum) {
     /* this is our port number */
     sa.sin_port= htons(portnum);
     /* create socket */
-    if ((socketFd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    socketFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (socketFd < 0)
         return(-1);
-
-    if (bind(socketFd , (struct sockaddr *)&sa , sizeof(struct sockaddr_in)) < 0) {
+    auto rt = bind(socketFd, (struct sockaddr *)&sa, sizeof(struct sockaddr));
+    if (rt == -1) {
+        int errsv = errno;
+        printf("bind error num %d failed\n", errsv);
+    }
+    if (rt < 0) {
         close(socketFd);
         return(-1);
     }
@@ -95,8 +100,6 @@ int readFromSocketToBuffer(int socketFD, char *buf, int bufferSize) {
 
 std::string getCommandFromArgs(int argc, char* argv[]){
     std::string command;
-    int numArguments = argc - 3;
-    std::string args[numArguments];
     for (auto i=3; i<argc; i++){
         command += (std::string)argv[i];
         command += " ";
@@ -119,7 +122,7 @@ int establishClient(char *hostname, unsigned short port){
     sa.sin_family = hp->h_addrtype;
     sa.sin_port = htons(port);
     clientFd = socket(hp->h_addrtype, SOCK_STREAM,0);
-    if (clientFd) < 0) {
+    if (clientFd < 0) {
         fprintf(stderr, "system error: client:\n");
         exit(1);
     }
@@ -134,18 +137,16 @@ int establishClient(char *hostname, unsigned short port){
 }
 
 
-    // usage: ./sockets client <port> <terminal_command_to_run>
+// usage: ./sockets client <port> <terminal_command_to_run>
 // usage: ./sockets server <port>
 int main(int argc, char* argv[]) {
     auto type = argv[1];
     auto port  = argv[2];
     if(strcmp(type, "client") == 0) {
         //Client
-        auto commandToRun = argv[2];
-
         char myname[MAXHOSTNAME+1];
         gethostname(myname, MAXHOSTNAME);
-        int clientFd = establishClient(myname, port);
+        int clientFd = establishClient(myname, strtol(port, nullptr, 10));
         auto command = getCommandFromArgs(argc, argv);
 
         char buf[BUFFER_SIZE];
@@ -174,10 +175,6 @@ int main(int argc, char* argv[]) {
             system(command);
             close(currentServerFd);
         }
-        close(mainServerFd);
-
     }
-    int newSocket = get_connection(socketFd);
-
     return 0;
 }
