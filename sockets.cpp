@@ -139,7 +139,7 @@ int establishClient(char *hostname, unsigned short port){
 
 // usage: ./sockets client <port> <terminal_command_to_run>
 // usage: ./sockets server <port>
-int main(int argc, char* argv[]) {
+int main2(int argc, char* argv[]) {
     auto type = argv[1];
     auto port  = argv[2];
     if(strcmp(type, "client") == 0) {
